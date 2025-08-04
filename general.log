@@ -1,0 +1,90 @@
+2025-08-01 21:41:40,853 - INFO - --- public_html/.well-known Transfer Start ---
+2025-08-01 21:41:41,240 - INFO - Connected (version 2.0, client OpenSSH_7.4)
+2025-08-01 21:41:42,583 - INFO - Authentication (password) successful!
+2025-08-01 21:41:43,068 - INFO - Connected (version 2.0, client OpenSSH_8.0)
+2025-08-01 21:41:44,471 - INFO - Authentication (password) successful!
+2025-08-01 21:41:45,022 - INFO - [chan 0] Opened sftp connection (server version 3)
+2025-08-01 21:41:45,763 - INFO - [chan 0] Opened sftp connection (server version 3)
+2025-08-01 21:41:45,764 - INFO - Command: pwd
+2025-08-01 21:41:46,263 - INFO - Command exit_status: 0
+2025-08-01 21:41:46,264 - INFO - Command stdout: /home1/afloltdc
+2025-08-01 21:41:46,264 - INFO - Command err: pwd
+2025-08-01 21:41:46,264 - INFO - Command: pwd
+2025-08-01 21:41:46,865 - INFO - Command exit_status: 0
+2025-08-01 21:41:46,866 - INFO - Command stdout: /home/aflouqps
+2025-08-01 21:41:46,866 - INFO - Command err: pwd
+2025-08-01 21:41:46,867 - INFO - Command: tar czf /home1/afloltdc/tmp/.well-known.tar.gz -C /home1/afloltdc/public_html/.well-known .
+2025-08-01 21:41:47,421 - INFO - Command exit_status: 0
+2025-08-01 21:41:47,422 - INFO - Command stdout: 
+2025-08-01 21:41:47,423 - INFO - Command err: tar czf /home1/afloltdc/tmp/.well-known.tar.gz -C /home1/afloltdc/public_html/.well-known .
+2025-08-01 21:41:47,423 - INFO - Compression complete: /home1/afloltdc/tmp/.well-known.tar.gz
+2025-08-01 21:41:47,424 - INFO - Command: test -f /home1/afloltdc/.ssh/id_rsa && echo EXISTS || echo MISSING
+2025-08-01 21:41:48,147 - INFO - Command exit_status: 0
+2025-08-01 21:41:48,148 - INFO - Command stdout: EXISTS
+2025-08-01 21:41:48,148 - INFO - Command err: test -f /home1/afloltdc/.ssh/id_rsa && echo EXISTS || echo MISSING
+2025-08-01 21:41:48,148 - INFO - priv_key_path:/home1/afloltdc/.ssh/id_rsa
+2025-08-01 21:41:48,149 - INFO - pub_key_path:/home1/afloltdc/.ssh/id_rsa.pub
+2025-08-01 21:41:49,145 - INFO - [chan 0] sftp session closed.
+2025-08-01 21:41:49,146 - INFO - Command: mkdir -p ~/.ssh && chmod 700 ~/.ssh
+2025-08-01 21:41:49,733 - INFO - Command exit_status: 0
+2025-08-01 21:41:49,734 - INFO - Command stdout: 
+2025-08-01 21:41:49,735 - INFO - Command err: mkdir -p ~/.ssh && chmod 700 ~/.ssh
+2025-08-01 21:41:50,764 - INFO - [chan 3] Opened sftp connection (server version 3)
+2025-08-01 21:41:51,011 - INFO - [chan 3] sftp session closed.
+2025-08-01 21:41:51,012 - INFO - Command: echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDd0ZlDp0NaUu9nu2TeUVIfBO+CGG9GZcZtR7t0192V1qNdbh9oQYM5UGs/XM4Mq1sn1Vi/ustxjAAE7SDnsSQ3MwbUnTDMUOyVM6K4KRQIKahGrVetzKWECyDfHvWa8u3tUN4vvN2p+h3Ned+soCkJ5A4RiV6bTUaybFuFlIx5aOwm6pCTeyyC8zyZsSLquuSxzMRDw3HChdlCOmcN2YdIKGy1GPt6ymLnhjtHbMWkBGVgpqi/RdtDWpIb7iPce5O/FPPk34Q8k3C6fnaBsEAxt/eBtGWIIwFb5GdiUDi1t8ybhTm/+sLUEFOatxhLcC1svAYRW1IF0tNMPr4BJe5l afloltdc@gator4309.hostgator.com" >> ~/.ssh/authorized_keys
+2025-08-01 21:41:51,849 - INFO - Command exit_status: 0
+2025-08-01 21:41:51,850 - INFO - Command stdout: 
+2025-08-01 21:41:51,851 - INFO - Command err: echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDd0ZlDp0NaUu9nu2TeUVIfBO+CGG9GZcZtR7t0192V1qNdbh9oQYM5UGs/XM4Mq1sn1Vi/ustxjAAE7SDnsSQ3MwbUnTDMUOyVM6K4KRQIKahGrVetzKWECyDfHvWa8u3tUN4vvN2p+h3Ned+soCkJ5A4RiV6bTUaybFuFlIx5aOwm6pCTeyyC8zyZsSLquuSxzMRDw3HChdlCOmcN2YdIKGy1GPt6ymLnhjtHbMWkBGVgpqi/RdtDWpIb7iPce5O/FPPk34Q8k3C6fnaBsEAxt/eBtGWIIwFb5GdiUDi1t8ybhTm/+sLUEFOatxhLcC1svAYRW1IF0tNMPr4BJe5l afloltdc@gator4309.hostgator.com" >> ~/.ssh/authorized_keys
+2025-08-01 21:41:51,851 - INFO - Command: chmod 600 ~/.ssh/authorized_keys
+2025-08-01 21:41:52,709 - INFO - Command exit_status: 0
+2025-08-01 21:41:52,709 - INFO - Command stdout: 
+2025-08-01 21:41:52,710 - INFO - Command err: chmod 600 ~/.ssh/authorized_keys
+2025-08-01 21:41:52,710 - INFO - Command: scp -P 21098 -i /home1/afloltdc/.ssh/id_rsa /home1/afloltdc/tmp/.well-known.tar.gz aflouqps@premium257.web-hosting.com:/home/aflouqps/tmp/.well-known.tar.gz
+2025-08-01 21:41:53,273 - INFO - Command exit_status: 1
+2025-08-01 21:41:53,274 - INFO - Command stdout: 
+2025-08-01 21:41:53,274 - INFO - Command err: scp -P 21098 -i /home1/afloltdc/.ssh/id_rsa /home1/afloltdc/tmp/.well-known.tar.gz aflouqps@premium257.web-hosting.com:/home/aflouqps/tmp/.well-known.tar.gz
+2025-08-01 22:01:15,796 - INFO - --- public_html/.well-known Transfer Start ---
+2025-08-01 22:01:16,203 - INFO - Connected (version 2.0, client OpenSSH_7.4)
+2025-08-01 22:01:17,680 - INFO - Authentication (password) successful!
+2025-08-01 22:01:18,347 - INFO - Connected (version 2.0, client OpenSSH_8.0)
+2025-08-01 22:01:19,680 - INFO - Authentication (password) successful!
+2025-08-01 22:01:20,243 - INFO - [chan 0] Opened sftp connection (server version 3)
+2025-08-01 22:01:20,976 - INFO - [chan 0] Opened sftp connection (server version 3)
+2025-08-01 22:01:20,977 - INFO - Command: pwd
+2025-08-01 22:01:21,502 - INFO - Command exit_status: 0
+2025-08-01 22:01:21,503 - INFO - Command stdout: /home1/afloltdc
+2025-08-01 22:01:21,504 - INFO - Command err: pwd
+2025-08-01 22:01:21,505 - INFO - Command: pwd
+2025-08-01 22:01:22,125 - INFO - Command exit_status: 0
+2025-08-01 22:01:22,127 - INFO - Command stdout: /home/aflouqps
+2025-08-01 22:01:22,128 - INFO - Command err: pwd
+2025-08-01 22:01:22,129 - INFO - Command: tar czf /home1/afloltdc/tmp/.well-known.tar.gz -C /home1/afloltdc/public_html/.well-known .
+2025-08-01 22:01:22,662 - INFO - Command exit_status: 0
+2025-08-01 22:01:22,663 - INFO - Command stdout: 
+2025-08-01 22:01:22,664 - INFO - Command err: tar czf /home1/afloltdc/tmp/.well-known.tar.gz -C /home1/afloltdc/public_html/.well-known .
+2025-08-01 22:01:22,665 - INFO - Compression complete: /home1/afloltdc/tmp/.well-known.tar.gz
+2025-08-01 22:01:22,666 - INFO - Command: test -f /home1/afloltdc/.ssh/id_rsa && echo EXISTS || echo MISSING
+2025-08-01 22:01:23,411 - INFO - Command exit_status: 0
+2025-08-01 22:01:23,411 - INFO - Command stdout: EXISTS
+2025-08-01 22:01:23,412 - INFO - Command err: test -f /home1/afloltdc/.ssh/id_rsa && echo EXISTS || echo MISSING
+2025-08-01 22:01:23,413 - INFO - priv_key_path:/home1/afloltdc/.ssh/id_rsa
+2025-08-01 22:01:23,414 - INFO - pub_key_path:/home1/afloltdc/.ssh/id_rsa.pub
+2025-08-01 22:01:24,444 - INFO - [chan 0] sftp session closed.
+2025-08-01 22:01:24,446 - INFO - Command: mkdir -p ~/.ssh && chmod 700 ~/.ssh
+2025-08-01 22:01:25,136 - INFO - Command exit_status: 0
+2025-08-01 22:01:25,137 - INFO - Command stdout: 
+2025-08-01 22:01:25,138 - INFO - Command err: mkdir -p ~/.ssh && chmod 700 ~/.ssh
+2025-08-01 22:01:26,161 - INFO - [chan 3] Opened sftp connection (server version 3)
+2025-08-01 22:01:26,418 - INFO - [chan 3] sftp session closed.
+2025-08-01 22:01:26,419 - INFO - Command: echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDd0ZlDp0NaUu9nu2TeUVIfBO+CGG9GZcZtR7t0192V1qNdbh9oQYM5UGs/XM4Mq1sn1Vi/ustxjAAE7SDnsSQ3MwbUnTDMUOyVM6K4KRQIKahGrVetzKWECyDfHvWa8u3tUN4vvN2p+h3Ned+soCkJ5A4RiV6bTUaybFuFlIx5aOwm6pCTeyyC8zyZsSLquuSxzMRDw3HChdlCOmcN2YdIKGy1GPt6ymLnhjtHbMWkBGVgpqi/RdtDWpIb7iPce5O/FPPk34Q8k3C6fnaBsEAxt/eBtGWIIwFb5GdiUDi1t8ybhTm/+sLUEFOatxhLcC1svAYRW1IF0tNMPr4BJe5l afloltdc@gator4309.hostgator.com" >> ~/.ssh/authorized_keys
+2025-08-01 22:01:27,341 - INFO - Command exit_status: 0
+2025-08-01 22:01:27,342 - INFO - Command stdout: 
+2025-08-01 22:01:27,343 - INFO - Command err: echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDd0ZlDp0NaUu9nu2TeUVIfBO+CGG9GZcZtR7t0192V1qNdbh9oQYM5UGs/XM4Mq1sn1Vi/ustxjAAE7SDnsSQ3MwbUnTDMUOyVM6K4KRQIKahGrVetzKWECyDfHvWa8u3tUN4vvN2p+h3Ned+soCkJ5A4RiV6bTUaybFuFlIx5aOwm6pCTeyyC8zyZsSLquuSxzMRDw3HChdlCOmcN2YdIKGy1GPt6ymLnhjtHbMWkBGVgpqi/RdtDWpIb7iPce5O/FPPk34Q8k3C6fnaBsEAxt/eBtGWIIwFb5GdiUDi1t8ybhTm/+sLUEFOatxhLcC1svAYRW1IF0tNMPr4BJe5l afloltdc@gator4309.hostgator.com" >> ~/.ssh/authorized_keys
+2025-08-01 22:01:27,344 - INFO - Command: chmod 600 ~/.ssh/authorized_keys
+2025-08-01 22:01:28,248 - INFO - Command exit_status: 0
+2025-08-01 22:01:28,250 - INFO - Command stdout: 
+2025-08-01 22:01:28,251 - INFO - Command err: chmod 600 ~/.ssh/authorized_keys
+2025-08-01 22:01:28,252 - INFO - Command: scp -P 21098 -i /home1/afloltdc/.ssh/id_rsa /home1/afloltdc/tmp/.well-known.tar.gz aflouqps@premium257.web-hosting.com:/home/aflouqps/tmp/.well-known.tar.gz
+2025-08-01 22:01:28,788 - INFO - Command exit_status: 1
+2025-08-01 22:01:28,789 - INFO - Command stdout: 
+2025-08-01 22:01:28,789 - INFO - Command err: scp -P 21098 -i /home1/afloltdc/.ssh/id_rsa /home1/afloltdc/tmp/.well-known.tar.gz aflouqps@premium257.web-hosting.com:/home/aflouqps/tmp/.well-known.tar.gz
