@@ -8,3 +8,4 @@ Pipfile.lock
 migration_report.json
 tmp_trans/
 transfers_results.csv
+general.log
