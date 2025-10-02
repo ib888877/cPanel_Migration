@@ -9,3 +9,8 @@ migration_report.json
 tmp_trans/
 transfers_results.csv
 general.log
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/

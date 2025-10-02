@@ -1,15 +1,18 @@
 # cPanel Migration Tool - FTP Only
 
-A simplified Python tool for transferring directories between cPanel servers using FTP protocol only.
+A highly optimized Python tool for transferring directories between cPanel servers using FTP protocol only.
 
 ## Features
 
--- **Ensure sufficient local disk space** for temporary files in `tmp_trans/` directory**FTP-Only Transfer**: No SSH dependencies, works with standard FTP access
-- **Directory Transfer**: Recursively transfer entire directory structures
+- **FTP-Only Transfer**: No SSH dependencies, works with standard FTP access
+- **Enhanced Reliability**: Automatic retry logic with exponential backoff for failed transfers
+- **Optimized Performance**: Binary mode, passive mode, and optimized buffer sizes for faster transfers
+- **Directory Transfer**: Recursively transfer entire directory structures with progress tracking
 - **Compression Support**: Optional tar.gz compression for faster transfers
 - **Chunked Transfer**: Handle large directories by splitting into manageable chunks
 - **Detailed Reporting**: Track transfer progress and generate comprehensive reports
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Robust Error Handling**: Better error detection, logging, and recovery mechanisms
 
 ## Requirements
 
@@ -100,13 +103,20 @@ python migrate.py --path mail/your-domain.com --verbose
 
 ## How It Works
 
-1. **Connect**: Establishes FTP connections to both source and target servers
-2. **Analyze**: Calculates directory size and file count
-3. **Download**: Downloads the source directory structure via FTP to `tmp_trans/` directory
+1. **Connect**: Establishes FTP connections to both source and target servers with retry logic and timeout management
+2. **Analyze**: Calculates directory size and file count using optimized MLSD commands when available
+3. **Download**: Downloads the source directory structure via FTP to `tmp_trans/` directory with automatic retry on failure
 4. **Process**: Optionally compresses or chunks the data based on size and settings
-5. **Upload**: Uploads the processed data to the target server via FTP
+5. **Upload**: Uploads the processed data to the target server via FTP with progress tracking
 6. **Cleanup**: Automatically removes temporary files after transfer
-7. **Report**: Generates detailed transfer report with statistics
+7. **Report**: Generates detailed transfer report with statistics and performance metrics
+
+### Transfer Reliability Features
+
+- **Exponential Backoff**: Failed operations automatically retry with increasing delays (2s, 4s, 8s)
+- **Connection Recovery**: Dropped connections are automatically re-established
+- **File Verification**: Downloaded files are verified for size match when possible
+- **Graceful Degradation**: Falls back to basic FTP commands if modern MLSD is unavailable
 
 ## Transfer Strategies
 
@@ -161,7 +171,7 @@ python migrate.py --path mail/your-domain.com --verbose
 
 ### Transfer Failures
 
-1. **Check transfer report** for detailed error information
+1. **Check transfer report** for detailed error information in `transfers_results.csv`
 2. **Use verbose logging** for debugging:
    ```bash
    python migrate.py --path problem-directory --verbose
@@ -169,6 +179,25 @@ python migrate.py --path mail/your-domain.com --verbose
 
 3. **Try smaller subdirectories** individually if large transfers fail
 4. **Check FTP timeouts** - some servers have strict timeout limits
+5. **Network issues**: The tool now automatically retries failed operations up to 3 times
+6. **Check logs**: Review `general.log` for detailed error traces and timing information
+
+### Performance Issues
+
+1. **Slow transfers**: 
+   - Verify network speed between servers
+   - Try disabling compression (`--compression-level 1`)
+   - Check if server has bandwidth limitations
+   
+2. **Connection drops**:
+   - The tool automatically retries with exponential backoff
+   - Consider transferring during off-peak hours
+   - Check firewall settings for FTP passive mode ports
+   
+3. **Memory issues**:
+   - Use chunked transfer for large directories
+   - Reduce chunk size: `--chunk-size 10485760` (10MB)
+   - Ensure sufficient disk space in `tmp_trans/`
 
 ### Common Error Messages
 
@@ -225,9 +254,43 @@ timestamp,success,protocol,source_path,target_path,start_time,end_time,duration_
 
 1. **Use compression** for directories with many text files (emails, logs)
 2. **Disable compression** for directories with already compressed files (images, videos)
-3. **Use chunking** for very large directories to avoid timeouts
+3. **Use chunking** for very large directories to avoid timeouts and manage disk space
 4. **Stable internet connection** is crucial for FTP transfers
 5. **Transfer during off-peak hours** for better server performance
+6. **Use verbose mode** (`--verbose`) for debugging performance issues
+
+## New in v2.1 - Performance Enhancements
+
+### Reliability Improvements
+- **Automatic Retry Logic**: Connections and transfers automatically retry with exponential backoff
+- **Better Error Recovery**: More robust handling of network interruptions and timeouts
+- **Connection Optimization**: FTP connections use passive mode and binary mode for better compatibility
+
+### Performance Optimizations
+- **Optimized Buffer Sizes**: 8KB transfer buffers for optimal throughput
+- **MLSD Support**: Uses modern FTP MLSD command when available for faster directory listing
+- **Better Progress Tracking**: Real-time progress updates during transfers
+- **Chunked Transfer Implementation**: Properly implemented chunked transfer for large directories
+
+### Code Quality
+- **Enhanced Logging**: Structured, informative logging with timing information
+- **Better Validation**: Input validation and environment variable checking
+- **Type Hints**: Improved code documentation and IDE support
+
+## Testing
+
+Run the test suite to verify enhancements:
+
+```bash
+python test_enhancements.py
+```
+
+This will test:
+- Connection retry logic
+- File transfer retry mechanisms
+- Progress tracking
+- Error handling
+- Optimization features
 
 ## Security Notes
 

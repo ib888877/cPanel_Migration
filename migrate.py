@@ -56,8 +56,9 @@ def validate_environment_variables():
     
     logging.info("Environment validation passed")
 
-# Validate environment before proceeding
-validate_environment_variables()
+# Validate environment before proceeding (skip if --help is used)
+if not any(arg in sys.argv for arg in ['--help', '-h']):
+    validate_environment_variables()
 
 # FTP configuration
 SOURCE_HOST = os.getenv("SOURCE_HOST")
