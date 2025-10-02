@@ -2,3 +2,9 @@ id_rsa
 id_rsa.pub
 .vscode/
 .env
+__pycache__/
+general.log
+Pipfile.lock
+migration_report.json
+tmp_trans/
+transfers_results.csv
