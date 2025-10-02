@@ -4,8 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-paramiko = "*"
-python-dotenv = "*"
+# No dependencies needed - using only built-in Python libraries
 
 [dev-packages]
 

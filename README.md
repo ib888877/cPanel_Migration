@@ -18,22 +18,22 @@ A highly optimized Python tool for transferring directories between cPanel serve
 
 - Python 3.6+
 - FTP access to both source and target cPanel accounts
-- python-dotenv (for environment configuration)
-- Sufficient local disk space for temporary files during transfer
+- Pipenv (for virtual environment management and automatic .env loading)
+- Sufficient local disk space in `tmp_trans/` directory for temporary files during transfer
 
 ## Installation
 
-1. **Install dependencies**:
+1. **Install Pipenv** (if not already installed):
    ```bash
-   pip install -r requirements.txt
-   ```
-   
-   Or install manually:
-   ```bash
-   pip install python-dotenv
+   pip install pipenv
    ```
 
-2. **Configure environment variables**:
+2. **Install dependencies and create virtual environment**:
+   ```bash
+   pipenv install
+   ```
+
+3. **Configure environment variables**:
    - Edit the `.env` file with your FTP server credentials
 
 ## Environment Configuration
@@ -61,29 +61,42 @@ MAX_CHUNK_SIZE=52428800
 
 ## Usage
 
+You can run the tool in two ways with pipenv:
+
+### Option 1: Using pipenv run (recommended)
+```bash
+pipenv run python migrate.py --path mail/your-domain.com
+```
+
+### Option 2: Using pipenv shell
+```bash
+pipenv shell
+python migrate.py --path mail/your-domain.com
+```
+
 ### Basic Transfer
 
 ```bash
-python migrate.py --path mail/your-domain.com
+pipenv run python migrate.py --path mail/your-domain.com
 ```
 *Results are automatically saved to `transfers_results.csv`*
 
 ### Chunked Transfer for Large Directories
 
 ```bash
-python migrate.py --path mail/your-domain.com --chunking --chunk-size 10485760
+pipenv run python migrate.py --path mail/your-domain.com --chunking --chunk-size 10485760
 ```
 
 ### With Compression
 
 ```bash
-python migrate.py --path mail/your-domain.com --compression-level 6
+pipenv run python migrate.py --path mail/your-domain.com --compression-level 6
 ```
 
 ### Verbose Output
 
 ```bash
-python migrate.py --path mail/your-domain.com --verbose
+pipenv run python migrate.py --path mail/your-domain.com --verbose
 ```
 
 ## Command Line Options
@@ -159,12 +172,12 @@ python migrate.py --path mail/your-domain.com --verbose
 
 1. **Use chunking** for directories larger than available local disk space:
    ```bash
-   python migrate.py --path large-directory --chunking --chunk-size 10485760
+   pipenv run python migrate.py --path large-directory --chunking --chunk-size 10485760
    ```
 
 2. **Lower compression level** to reduce processing time:
    ```bash
-   python migrate.py --path large-directory --compression-level 1
+   pipenv run python migrate.py --path large-directory --compression-level 1
    ```
 
 3. **Ensure sufficient local disk space** for temporary files
@@ -174,7 +187,7 @@ python migrate.py --path mail/your-domain.com --verbose
 1. **Check transfer report** for detailed error information in `transfers_results.csv`
 2. **Use verbose logging** for debugging:
    ```bash
-   python migrate.py --path problem-directory --verbose
+   pipenv run python migrate.py --path problem-directory --verbose
    ```
 
 3. **Try smaller subdirectories** individually if large transfers fail
@@ -210,17 +223,17 @@ python migrate.py --path mail/your-domain.com --verbose
 
 ### Transfer Email Directory
 ```bash
-python migrate.py --path mail/example.com --chunking
+pipenv run python migrate.py --path mail/example.com --chunking
 ```
 
 ### Transfer Website Files
 ```bash
-python migrate.py --path public_html --compression-level 6
+pipenv run python migrate.py --path public_html --compression-level 6
 ```
 
 ### Transfer Large Directory with Custom Settings
 ```bash
-python migrate.py --path backups/large-backup --chunking --chunk-size 5242880 --compression-level 3 --verbose
+pipenv run python migrate.py --path backups/large-backup --chunking --chunk-size 5242880 --compression-level 3 --verbose
 ```
 
 ## Transfer Reports
@@ -301,9 +314,10 @@ This will test:
 
 ## Notes
 
-- This version does not require SSH access or paramiko library
+- This version does not require SSH access or external libraries - uses only built-in Python modules
 - All transfers use standard FTP protocol (RFC 959)
 - Temporary files are created in `tmp_trans/` directory and automatically cleaned up after each transfer
 - The tool automatically handles directory structures and file permissions available via FTP
 - Cross-platform compatibility with Windows, macOS, and Linux
 - Transfer results are automatically saved to `transfers_results.csv` in the current directory
+- **Pipenv automatically loads .env files** - no need for manual environment configuration when using `pipenv run` or `pipenv shell`

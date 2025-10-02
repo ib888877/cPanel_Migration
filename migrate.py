@@ -6,13 +6,12 @@ import logging
 import argparse
 import json
 import datetime
-from dotenv import load_dotenv
 from service_ftp import (
     transfer_directory, 
     TransferReport
 )
 
-load_dotenv()
+# Pipenv automatically loads .env file when using 'pipenv run' or 'pipenv shell'
 
 # Logging setup
 log_file = 'general.log'
