@@ -34,7 +34,8 @@ def validate_environment_variables():
     
     missing_vars = []
     for var in required_vars:
-        if not os.getenv(var):
+        value = os.getenv(var)
+        if not value or value.strip() == "":
             missing_vars.append(var)
     
     if missing_vars:
@@ -42,10 +43,22 @@ def validate_environment_variables():
         logging.error("Please ensure all required variables are set in your .env file")
         sys.exit(1)
     
-    logging.info("All required environment variables are set")
+    # Validate ports are valid integers
+    try:
+        source_port = int(os.getenv("SOURCE_PORT", 21))
+        target_port = int(os.getenv("TARGET_PORT", 21))
+        if not (1 <= source_port <= 65535) or not (1 <= target_port <= 65535):
+            logging.error("Port numbers must be between 1 and 65535")
+            sys.exit(1)
+    except ValueError:
+        logging.error("Invalid port number in environment variables")
+        sys.exit(1)
+    
+    logging.info("Environment validation passed")
 
-# Validate environment before proceeding
-validate_environment_variables()
+# Validate environment before proceeding (skip if --help is used)
+if not any(arg in sys.argv for arg in ['--help', '-h']):
+    validate_environment_variables()
 
 # FTP configuration
 SOURCE_HOST = os.getenv("SOURCE_HOST")
@@ -124,6 +137,7 @@ def parse_args():
 
 def main():
     """Main execution function with error handling."""
+    args = None
     try:
         args = parse_args()
         
@@ -132,60 +146,75 @@ def main():
             logging.getLogger().setLevel(logging.DEBUG)
             logging.debug("Verbose logging enabled")
         
-        logging.info("Starting cPanel migration tool v2.0 (FTP Only)...")
-        logging.info("Using transfer protocol: FTP")
+        logging.info("=" * 60)
+        logging.info("cPanel Migration Tool v2.1 (FTP Only)")
+        logging.info("=" * 60)
+        logging.info(f"Transfer protocol: FTP")
         
         # Log transfer strategy
         if args.chunking:
-            logging.info(f"Transfer strategy: Chunked transfer (max chunk size: {args.chunk_size/1024/1024:.2f}MB)")
+            logging.info(f"Transfer strategy: Chunked (max chunk: {args.chunk_size/1024/1024:.2f}MB)")
         else:
-            logging.info("Transfer strategy: Standard FTP transfer")
+            logging.info("Transfer strategy: Standard FTP")
+        
+        if args.compression_level > 1:
+            logging.info(f"Compression: Level {args.compression_level}")
+        else:
+            logging.info("Compression: Disabled (fastest)")
         
         # Initialize report list
         reports = []
         
+        # Validate path is provided
+        if not args.path:
+            logging.error("No path specified for transfer")
+            sys.exit(1)
+        
         # Transfer directory
-        if args.path:
-            logging.info(f"Transferring directory: {args.path}")
-            
-            # Create a custom configuration dictionary from arguments
-            transfer_config = {
-                'cleanup_temp_files': True,  # Always clean temp files
-                'use_chunking': args.chunking,
-                'max_chunk_size': args.chunk_size,
-                'compression_level': args.compression_level
-            }
-            
-            # Use dictionary unpacking for cleaner code
-            dir_report = transfer_directory(
-                SOURCE_HOST, SOURCE_PORT, SOURCE_USER, SOURCE_PASS,
-                TARGET_HOST, TARGET_PORT, TARGET_USER, TARGET_PASS,
-                args.path, **transfer_config
-            )
-            
-            reports.append(dir_report)
-            
-            if dir_report.success:
-                logging.info("Directory transfer completed successfully")
-            else:
-                logging.error("Directory transfer failed")
-                # Log specific errors for better debugging
+        logging.info(f"Transfer path: {args.path}")
+        logging.info("-" * 60)
+        
+        # Create a custom configuration dictionary from arguments
+        transfer_config = {
+            'cleanup_temp_files': True,  # Always clean temp files
+            'use_chunking': args.chunking,
+            'max_chunk_size': args.chunk_size,
+            'compression_level': args.compression_level
+        }
+        
+        # Use dictionary unpacking for cleaner code
+        dir_report = transfer_directory(
+            SOURCE_HOST, SOURCE_PORT, SOURCE_USER, SOURCE_PASS,
+            TARGET_HOST, TARGET_PORT, TARGET_USER, TARGET_PASS,
+            args.path, **transfer_config
+        )
+        
+        reports.append(dir_report)
+        
+        if dir_report.success:
+            logging.info("✓ Directory transfer completed successfully")
+        else:
+            logging.error("✗ Directory transfer failed")
+            # Log specific errors for better debugging
+            if dir_report.errors:
+                logging.error("Errors encountered:")
                 for error in dir_report.errors:
-                    logging.error(f"- {error}")
+                    logging.error(f"  - {error}")
         
         # Generate and save individual CSV reports
         for report in reports:
-            if report.success:
-                report.save_csv_report(REPORT_FILE)
-            else:
-                # Save failed transfers to CSV as well for tracking
-                report.save_csv_report(REPORT_FILE)
+            # Save all transfers to CSV for tracking (both success and failure)
+            report.save_csv_report(REPORT_FILE)
         
         # Calculate and display summary statistics
+        logging.info("=" * 60)
+        logging.info("Transfer Summary")
+        logging.info("=" * 60)
+        
         total_bytes_transferred = sum(report.transferred_size_bytes for report in reports)
         total_duration = sum(report.get_duration() for report in reports) if reports else 0
         
-        # Print a more detailed summary
+        # Print detailed summary
         if total_bytes_transferred > 0:
             total_mb = total_bytes_transferred / (1024 * 1024)
             logging.info(f"Total data transferred: {total_mb:.2f} MB")
@@ -193,20 +222,30 @@ def main():
             if total_duration > 0:
                 speed_mbps = total_mb / total_duration
                 logging.info(f"Average transfer speed: {speed_mbps:.2f} MB/s")
+                logging.info(f"Total duration: {total_duration:.2f} seconds")
+        
+        successful = sum(1 for r in reports if r.success)
+        failed = len(reports) - successful
+        logging.info(f"Transfers: {successful} successful, {failed} failed")
+        logging.info(f"Report saved to: {REPORT_FILE}")
         
         # Check if any transfers failed
         if any(not report.success for report in reports):
+            logging.error("=" * 60)
             logging.error("Migration completed with errors. Check the report for details.")
+            logging.error("=" * 60)
             sys.exit(1)
         else:
-            logging.info("Migration process completed successfully!")
+            logging.info("=" * 60)
+            logging.info("Migration completed successfully!")
+            logging.info("=" * 60)
         
     except KeyboardInterrupt:
-        logging.warning("Migration interrupted by user")
+        logging.warning("\nMigration interrupted by user")
         sys.exit(130)
     except Exception as e:
         logging.error(f"Migration failed with error: {str(e)}")
-        if args.verbose:
+        if args and args.verbose:
             import traceback
             logging.error(traceback.format_exc())
         sys.exit(1)
