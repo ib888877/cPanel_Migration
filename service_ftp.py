@@ -8,6 +8,7 @@ import ftplib
 import tarfile
 import tempfile
 import shutil
+import sys
 from ftplib import FTP
 from typing import Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -22,6 +23,56 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+def format_bytes(bytes_val):
+    """Convert bytes to human readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes_val < 1024.0:
+            return f"{bytes_val:.1f} {unit}"
+        bytes_val /= 1024.0
+    return f"{bytes_val:.1f} TB"
+
+def format_time(seconds):
+    """Convert seconds to human readable format."""
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        return f"{seconds//60:.0f}m {seconds%60:.0f}s"
+    else:
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        return f"{hours:.0f}h {minutes:.0f}m"
+
+def show_progress(downloaded, total_size, start_time, filename=""):
+    """Display download progress with speed and ETA."""
+    if total_size <= 0:
+        return
+    
+    elapsed = time.time() - start_time
+    if elapsed <= 0:
+        return
+    
+    percentage = (downloaded / total_size) * 100
+    speed = downloaded / elapsed
+    eta = (total_size - downloaded) / speed if speed > 0 else 0
+    
+    # Create progress bar (50 chars wide)
+    bar_length = 50
+    filled_length = int(bar_length * downloaded // total_size)
+    bar = '█' * filled_length + '░' * (bar_length - filled_length)
+    
+    # Format the display
+    file_display = f" {filename}" if filename else ""
+    progress_line = (f"\r{file_display} [{bar}] {percentage:.1f}% "
+                    f"({format_bytes(downloaded)}/{format_bytes(total_size)}) "
+                    f"@ {format_bytes(speed)}/s ETA: {format_time(eta)}")
+    
+    # Print without newline and flush
+    print(progress_line, end='', flush=True)
+    
+    # If complete, add newline
+    if downloaded >= total_size:
+        print()  # New line after completion
 
 class TransferReport:
     """Class for tracking transfer statistics and generating reports."""
@@ -276,7 +327,7 @@ def get_ftp_directory_size(ftp, path):
         logging.error(f"Error calculating directory size: {str(e)}")
         return 0, 0, 0
 
-def download_ftp_file_with_retry(ftp, remote_file, local_file, max_retries=3):
+def download_ftp_file_with_retry(ftp, remote_file, local_file, max_retries=3, show_progress_bar=True):
     """Download a single file with retry logic and progress tracking.
     
     Args:
@@ -284,6 +335,7 @@ def download_ftp_file_with_retry(ftp, remote_file, local_file, max_retries=3):
         remote_file: Remote filename
         local_file: Local file path
         max_retries: Maximum number of retry attempts
+        show_progress_bar: Whether to show real-time progress bar
         
     Returns:
         True if successful, False otherwise
@@ -296,16 +348,40 @@ def download_ftp_file_with_retry(ftp, remote_file, local_file, max_retries=3):
             if file_size is None:
                 file_size = 0
             
+            downloaded = 0
+            start_time = time.time()
+            
             with open(local_file, 'wb') as f:
                 def callback(data):
+                    nonlocal downloaded
                     f.write(data)
+                    downloaded += len(data)
+                    
+                    # Show progress every 64KB or on completion to avoid too frequent updates
+                    if show_progress_bar and file_size > 0:
+                        if downloaded % 65536 == 0 or downloaded >= file_size:
+                            show_progress(downloaded, file_size, start_time, os.path.basename(remote_file))
+                
+                # Log file download start
+                if file_size > 0:
+                    logging.info(f"Downloading: {remote_file} ({format_bytes(file_size)})")
+                else:
+                    logging.info(f"Downloading: {remote_file}")
                 
                 ftp.retrbinary(f'RETR {remote_file}', callback, blocksize=8192)
+                
+                # Ensure progress shows 100% completion
+                if show_progress_bar and file_size > 0:
+                    show_progress(file_size, file_size, start_time, os.path.basename(remote_file))
             
             # Verify file was downloaded
             if os.path.exists(local_file):
                 downloaded_size = os.path.getsize(local_file)
                 if file_size == 0 or downloaded_size == file_size:
+                    elapsed = time.time() - start_time
+                    if elapsed > 0:
+                        speed = downloaded_size / elapsed
+                        logging.info(f"Downloaded {remote_file} successfully ({format_bytes(downloaded_size)} @ {format_bytes(speed)}/s)")
                     return True
                 else:
                     logging.warning(f"Size mismatch for {remote_file}: expected {file_size}, got {downloaded_size}")
@@ -322,13 +398,14 @@ def download_ftp_file_with_retry(ftp, remote_file, local_file, max_retries=3):
     return False
 
 
-def download_ftp_directory(ftp, remote_path, local_path):
-    """Download a directory recursively from FTP server with optimizations.
+def download_ftp_directory(ftp, remote_path, local_path, report=None):
+    """Download a directory recursively from FTP server with optimizations and progress tracking.
     
     Args:
         ftp: FTP connection object
         remote_path: Remote directory path
         local_path: Local directory path
+        report: Optional TransferReport object for progress tracking
     """
     try:
         # Create local directory if it doesn't exist
@@ -366,11 +443,28 @@ def download_ftp_directory(ftp, remote_path, local_path):
                 except:
                     dirs_to_process.append(item)
         
-        # Download files
-        for filename, file_size in items_to_download:
+        # Download files with progress tracking
+        total_files = len(items_to_download)
+        if total_files > 0:
+            logging.info(f"Downloading {total_files} files from directory: {remote_path}")
+            
+        for i, (filename, file_size) in enumerate(items_to_download, 1):
             local_file_path = os.path.join(local_path, filename)
-            logging.info(f"Downloading file: {filename} ({file_size} bytes)")
-            download_ftp_file_with_retry(ftp, filename, local_file_path)
+            
+            # Show overall directory progress
+            logging.info(f"[{i}/{total_files}] Downloading: {filename}")
+            
+            # Update report if provided
+            if report:
+                report.update_progress(filename, i - 1)
+            
+            # Download with progress bar
+            success = download_ftp_file_with_retry(ftp, filename, local_file_path, show_progress_bar=True)
+            
+            if not success:
+                logging.error(f"Failed to download {filename}")
+                if report:
+                    report.add_error(f"Failed to download {filename}")
         
         # Process subdirectories
         for dirname in dirs_to_process:
@@ -378,16 +472,25 @@ def download_ftp_directory(ftp, remote_path, local_path):
             try:
                 ftp.cwd(dirname)
                 logging.info(f"Entering directory: {dirname}")
-                download_ftp_directory(ftp, '.', local_dir_path)
+                download_ftp_directory(ftp, '.', local_dir_path, report)
                 ftp.cwd('..')
             except Exception as e:
-                logging.warning(f"Could not download directory {dirname}: {str(e)}")
+                error_msg = f"Could not download directory {dirname}: {str(e)}"
+                logging.warning(error_msg)
+                if report:
+                    report.add_error(error_msg)
         
         # Return to original directory
         ftp.cwd(original_dir)
         
+        if total_files > 0:
+            logging.info(f"Completed downloading {total_files} files from: {remote_path}")
+        
     except Exception as e:
-        logging.error(f"Error downloading directory: {str(e)}")
+        error_msg = f"Error downloading directory: {str(e)}"
+        logging.error(error_msg)
+        if report:
+            report.add_error(error_msg)
         raise
 
 def upload_ftp_file_with_retry(ftp, local_file, remote_file, max_retries=3):
@@ -471,6 +574,239 @@ def upload_ftp_directory(ftp, local_path, remote_path):
         logging.error(f"Error uploading directory: {str(e)}")
         raise
 
+def create_remote_archive_in_tmp(ftp, remote_path, archive_name, compression_level=6):
+    """
+    Create a compressed archive on the remote server in ~/tmp_trans directory.
+    
+    Args:
+        ftp: FTP connection to the server
+        remote_path: Path to compress
+        archive_name: Name for the archive file
+        compression_level: Compression level (1-9)
+        
+    Returns:
+        str: Path to the created archive or None if failed
+    """
+    try:
+        # Ensure tmp_trans directory exists in home directory
+        home_dir = ftp.pwd()
+        tmp_dir = "tmp_trans"
+        archive_path = f"{tmp_dir}/{archive_name}.tar.gz"
+        
+        logging.info(f"Creating remote archive in ~/tmp_trans: {archive_name}.tar.gz")
+        
+        # Create tmp_trans directory if it doesn't exist
+        try:
+            ftp.mkd(tmp_dir)
+            logging.debug(f"Created directory: {tmp_dir}")
+        except Exception as e:
+            # Directory might already exist
+            logging.debug(f"Directory creation response: {str(e)}")
+        
+        # Try different tar command variations for creating archive in tmp_trans
+        tar_commands = [
+            f"tar -czf ~/{archive_path} {remote_path}",
+            f"tar czf ~/{archive_path} {remote_path}",
+            f"cd ~ && tar -czf {archive_path} {remote_path}",
+            f"tar -czf {home_dir}/{archive_path} {remote_path}"
+        ]
+        
+        for cmd in tar_commands:
+            try:
+                logging.debug(f"Trying SITE command: {cmd}")
+                response = ftp.sendcmd(f"SITE {cmd}")
+                logging.info(f"Archive creation response: {response}")
+                
+                # Check if archive was created by trying to get its size
+                try:
+                    size = ftp.size(archive_path)
+                    if size and size > 0:
+                        logging.info(f"Remote archive created successfully: {archive_path} ({size/1024/1024:.2f}MB)")
+                        return archive_path
+                except:
+                    pass
+                    
+            except Exception as e:
+                logging.debug(f"SITE command failed: {str(e)}")
+                continue
+        
+        # Try alternative approaches using SITE EXEC
+        try:
+            logging.info("Trying SITE EXEC commands...")
+            
+            exec_commands = [
+                f"tar -czf ~/{archive_path} {remote_path}",
+                f"cd ~ && tar czf {archive_path} {remote_path}"
+            ]
+            
+            for cmd in exec_commands:
+                try:
+                    response = ftp.sendcmd(f"SITE EXEC {cmd}")
+                    logging.info(f"EXEC command response: {response}")
+                    
+                    # Check if archive exists
+                    try:
+                        size = ftp.size(archive_path)
+                        if size and size > 0:
+                            logging.info(f"EXEC method succeeded: {archive_path} ({size/1024/1024:.2f}MB)")
+                            return archive_path
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    logging.debug(f"EXEC command failed: {str(e)}")
+                    continue
+                
+        except Exception as e:
+            logging.debug(f"EXEC method failed: {str(e)}")
+        
+        logging.warning("Could not create remote archive in tmp_trans")
+        return None
+        
+    except Exception as e:
+        logging.error(f"Error creating remote archive in tmp_trans: {str(e)}")
+        return None
+
+def transfer_archive_direct(source_ftp, target_ftp, archive_path, target_path):
+    """
+    Transfer archive directly from source to destination server without local download.
+    
+    Args:
+        source_ftp: Source FTP connection
+        target_ftp: Target FTP connection  
+        archive_path: Path to archive on source server
+        target_path: Target path on destination server
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        archive_name = os.path.basename(archive_path)
+        logging.info(f"Transferring archive directly: {archive_name}")
+        
+        # Create a temporary local buffer for the transfer
+        import tempfile
+        
+        with tempfile.NamedTemporaryFile() as temp_file:
+            # Download from source to temporary file
+            logging.info("Downloading archive from source...")
+            source_ftp.retrbinary(f'RETR {archive_path}', temp_file.write, blocksize=8192)
+            
+            # Reset file pointer to beginning
+            temp_file.seek(0)
+            
+            # Upload to destination
+            logging.info("Uploading archive to destination...")
+            target_ftp.storbinary(f'STOR {archive_name}', temp_file, blocksize=8192)
+            
+        logging.info("Direct archive transfer completed successfully")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Direct archive transfer failed: {str(e)}")
+        return False
+
+def decompress_remote_archive(ftp, archive_path, target_path):
+    """
+    Decompress archive on remote destination server.
+    
+    Args:
+        ftp: FTP connection to destination server
+        archive_path: Path to archive file on destination
+        target_path: Path where contents should be extracted
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        archive_name = os.path.basename(archive_path)
+        logging.info(f"Decompressing archive on destination: {archive_name}")
+        
+        # Ensure target directory exists
+        try:
+            # Try to create the target directory structure
+            dirs_to_create = target_path.split('/')
+            current_path = ""
+            for dir_name in dirs_to_create:
+                if dir_name:  # Skip empty strings
+                    current_path += f"{dir_name}/"
+                    try:
+                        ftp.mkd(current_path.rstrip('/'))
+                        logging.debug(f"Created directory: {current_path}")
+                    except:
+                        pass  # Directory might already exist
+        except Exception as e:
+            logging.debug(f"Directory creation: {str(e)}")
+        
+        # Try different decompression commands
+        decompress_commands = [
+            f"tar -xzf {archive_name} -C {target_path}",
+            f"tar xzf {archive_name} -C {target_path}",
+            f"cd {target_path} && tar -xzf ~/{archive_name}",
+            f"cd {target_path} && tar xzf ../{archive_name}"
+        ]
+        
+        for cmd in decompress_commands:
+            try:
+                logging.debug(f"Trying decompression command: {cmd}")
+                response = ftp.sendcmd(f"SITE {cmd}")
+                logging.info(f"Decompression response: {response}")
+                
+                # Check if decompression was successful by listing target directory
+                try:
+                    ftp.cwd(target_path)
+                    files = []
+                    ftp.retrlines('LIST', files.append)
+                    if files:
+                        logging.info(f"Decompression successful - found {len(files)} items in {target_path}")
+                        return True
+                except:
+                    pass
+                    
+            except Exception as e:
+                logging.debug(f"Decompression command failed: {str(e)}")
+                continue
+        
+        # Try SITE EXEC commands
+        try:
+            for cmd in decompress_commands:
+                try:
+                    response = ftp.sendcmd(f"SITE EXEC {cmd}")
+                    logging.info(f"EXEC decompression response: {response}")
+                    
+                    # Verify decompression
+                    try:
+                        ftp.cwd(target_path)
+                        files = []
+                        ftp.retrlines('LIST', files.append)
+                        if files:
+                            logging.info(f"EXEC decompression successful - found {len(files)} items")
+                            return True
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    logging.debug(f"EXEC decompression failed: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logging.debug(f"EXEC method failed: {str(e)}")
+        
+        logging.warning("Could not decompress archive on destination server")
+        return False
+        
+    except Exception as e:
+        logging.error(f"Error decompressing remote archive: {str(e)}")
+        return False
+
+def cleanup_remote_archive(ftp, archive_path):
+    """Clean up the temporary archive on the remote server."""
+    try:
+        ftp.delete(archive_path)
+        logging.info(f"Remote archive cleaned up: {archive_path}")
+    except Exception as e:
+        logging.warning(f"Could not clean up remote archive {archive_path}: {str(e)}")
+
 def transfer_directory(
         SOURCE_HOST, SOURCE_PORT, SOURCE_USER, SOURCE_PASS,
         TARGET_HOST, TARGET_PORT, TARGET_USER, TARGET_PASS,
@@ -536,56 +872,99 @@ def transfer_directory(
         
         local_download_path = os.path.join(transfer_temp_dir, "source")
         
-        # Download from source
-        logging.info("Downloading from source FTP server...")
-        start_download = time.time()
-        download_ftp_directory(source_ftp, path, local_download_path)
-        download_duration = time.time() - start_download
-        logging.info(f"Download completed in {download_duration:.2f} seconds")
+        # Try to compress on source server first for efficiency
+        compressed_transfer = False
+        archive_name = f"transfer_{timestamp}_{os.path.basename(path).replace('/', '_')}"
         
-        # Determine transfer strategy
-        if use_chunking and total_size > max_chunk_size:
-            # Handle chunked transfer
-            logging.info(f"Using chunked transfer (directory size {total_size/1024/1024:.2f}MB exceeds chunk size {max_chunk_size/1024/1024:.2f}MB)")
-            start_upload = time.time()
-            success = transfer_in_chunks_ftp(
-                local_download_path, target_ftp, path, 
-                max_chunk_size, compression_level, report
-            )
-            upload_duration = time.time() - start_upload
-            logging.info(f"Chunked upload completed in {upload_duration:.2f} seconds")
-        else:
-            # Standard transfer
-            logging.info("Using standard FTP transfer")
-            start_upload = time.time()
+        logging.info("Attempting source-side compression workflow...")
+        start_transfer = time.time()
+        
+        # Step 1: Create compressed archive on source server in ~/tmp_trans
+        remote_archive_path = create_remote_archive_in_tmp(source_ftp, path, archive_name, compression_level)
+        
+        if remote_archive_path:
+            # Step 2: Transfer archive directly from source to destination
+            logging.info("Source compression successful, transferring archive directly...")
+            transfer_success = transfer_archive_direct(source_ftp, target_ftp, remote_archive_path, path)
             
-            if compression_level > 1:
-                # Create compressed archive
-                archive_path = os.path.join(transfer_temp_dir, f"{os.path.basename(path)}.tar.gz")
-                logging.info(f"Creating compressed archive (level {compression_level})...")
+            if transfer_success:
+                # Step 3: Decompress archive on destination server
+                logging.info("Archive transfer successful, decompressing on destination...")
+                decompress_success = decompress_remote_archive(target_ftp, os.path.basename(remote_archive_path), path)
                 
-                with tarfile.open(archive_path, "w:gz", compresslevel=compression_level) as tar:
-                    tar.add(local_download_path, arcname=os.path.basename(path))
-                
-                archive_size = os.path.getsize(archive_path)
-                compression_ratio = (1 - archive_size / total_size) * 100 if total_size > 0 else 0
-                logging.info(f"Archive created: {archive_size/1024/1024:.2f}MB (compression: {compression_ratio:.1f}%)")
-                
-                # Upload compressed archive
-                logging.info("Uploading compressed archive...")
-                with open(archive_path, 'rb') as archive_file:
-                    target_ftp.storbinary(f'STOR {os.path.basename(archive_path)}', archive_file, blocksize=8192)
-                
-                logging.info("Compressed upload completed")
-                logging.info("Note: Archive needs to be extracted on the target server")
-                
+                if decompress_success:
+                    compressed_transfer = True
+                    logging.info("Complete source-to-destination compression workflow successful")
+                    
+                    # Clean up source archive
+                    cleanup_remote_archive(source_ftp, remote_archive_path)
+                    
+                    # Clean up destination archive
+                    try:
+                        target_ftp.delete(os.path.basename(remote_archive_path))
+                        logging.info("Destination archive cleaned up")
+                    except:
+                        logging.warning("Could not clean up destination archive")
+                else:
+                    logging.warning("Decompression failed, falling back to standard transfer")
             else:
-                # Direct upload without compression
-                logging.info("Uploading directory structure...")
-                upload_ftp_directory(target_ftp, local_download_path, path)
-            
-            upload_duration = time.time() - start_upload
-            logging.info(f"Upload completed in {upload_duration:.2f} seconds")
+                logging.warning("Archive transfer failed, falling back to standard transfer")
+        
+        if not compressed_transfer:
+            # Fall back to traditional download-then-upload workflow
+            logging.info("Using traditional download-then-upload workflow...")
+            download_ftp_directory(source_ftp, path, local_download_path, report)
+        
+        transfer_duration = time.time() - start_transfer
+        logging.info(f"Transfer completed in {transfer_duration:.2f} seconds")
+        
+        # Determine transfer strategy only if compression workflow didn't complete
+        if not compressed_transfer:
+            if use_chunking and total_size > max_chunk_size:
+                # Handle chunked transfer
+                logging.info(f"Using chunked transfer (directory size {total_size/1024/1024:.2f}MB exceeds chunk size {max_chunk_size/1024/1024:.2f}MB)")
+                start_upload = time.time()
+                success = transfer_in_chunks_ftp(
+                    local_download_path, target_ftp, path, 
+                    max_chunk_size, compression_level, report
+                )
+                upload_duration = time.time() - start_upload
+                logging.info(f"Chunked upload completed in {upload_duration:.2f} seconds")
+            else:
+                # Standard transfer
+                logging.info("Using standard FTP transfer")
+                start_upload = time.time()
+                
+                if compression_level > 1:
+                    # Create compressed archive locally
+                    archive_path = os.path.join(transfer_temp_dir, f"{os.path.basename(path)}.tar.gz")
+                    logging.info(f"Creating local compressed archive (level {compression_level})...")
+                    
+                    with tarfile.open(archive_path, "w:gz", compresslevel=compression_level) as tar:
+                        tar.add(local_download_path, arcname=os.path.basename(path))
+                    
+                    archive_size = os.path.getsize(archive_path)
+                    compression_ratio = (1 - archive_size / total_size) * 100 if total_size > 0 else 0
+                    logging.info(f"Local archive created: {archive_size/1024/1024:.2f}MB (compression: {compression_ratio:.1f}%)")
+                    
+                    # Upload compressed archive
+                    logging.info("Uploading compressed archive...")
+                    with open(archive_path, 'rb') as archive_file:
+                        target_ftp.storbinary(f'STOR {os.path.basename(archive_path)}', archive_file, blocksize=8192)
+                    
+                    logging.info("Compressed upload completed")
+                    logging.info("Note: Archive needs to be extracted on the target server")
+                    
+                else:
+                    # Direct upload without compression
+                    logging.info("Uploading directory structure...")
+                    upload_ftp_directory(target_ftp, local_download_path, path)
+                
+                upload_duration = time.time() - start_upload
+                logging.info(f"Upload completed in {upload_duration:.2f} seconds")
+                success = True
+        else:
+            # Compressed transfer workflow completed successfully
             success = True
         
         if success:

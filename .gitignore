@@ -4,7 +4,6 @@ id_rsa.pub
 .env
 __pycache__/
 general.log
-Pipfile.lock
 migration_report.json
 tmp_trans/
 transfers_results.csv
@@ -14,3 +13,4 @@ general.log
 .pytest_cache/
 .coverage
 htmlcov/
+Pipfile.lock
